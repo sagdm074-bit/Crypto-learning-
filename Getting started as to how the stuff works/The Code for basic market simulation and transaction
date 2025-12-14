@@ -1,0 +1,144 @@
+#include <bits/stdc++.h>
+#include <random>
+#include <thread>
+#include <chrono>
+using namespace std;
+
+// Generate random hex string
+string randomHex(int length) {
+    static const char hexChars[] = "0123456789abcdef";
+    random_device rd;
+    mt19937 gen(rd());
+    uniform_int_distribution<> dist(0, 15);
+
+    string s;
+    for (int i = 0; i < length; i++)
+        s += hexChars[dist(gen)];
+    return s;
+}
+
+int main() {
+    random_device rd;
+    mt19937 gen(rd());
+
+    uniform_real_distribution<double> priceMove(-1000, 1000);
+    uniform_int_distribution<int> buySell(0, 1);
+    uniform_int_distribution<int> walletPick(0, 9);
+    uniform_real_distribution<double> amountGen(0.01, 0.5);
+
+    // User wallet
+    string userAddress = "0x" + randomHex(40);
+    string userPrivate = randomHex(64);
+    double userBTC = 1000.0;
+
+    // Demo contacts
+    map<string, string> contacts = {
+        {"1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", "Alice"},
+        {"3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy", "Dad"},
+        {"1BoatSLRHtKNngkdXEeobR76b53LETtpyT", "Mom"},
+        {"1Ez69SnzzmePmZX3WpEzMKTrcBF2gpNQ55", "Coffee Shop"},
+        {"3QJmV3qfvL9SuYo34YihAf3sRCW3qSinyC", "General Store"}
+    };
+
+    // Market wallets
+    vector<string> wallets(10);
+    for (int i = 0; i < 10; i++)
+        wallets[i] = "0x" + randomHex(40);
+
+    // Initial BTC price
+    double price = 50000.0;
+
+    cout << "\n=== ARTIFICIAL BTC SIMULATOR ===\n";
+    cout << "Your Wallet Address: " << userAddress << "\n";
+    cout << "Your Private Key:    " << userPrivate << "\n";
+    cout << "Starting Balance:    " << userBTC << " BTC\n";
+
+    while (true) {
+        cout << "\nChoose action (T = transaction, M = market, Q = quit): ";
+        char choice;
+        cin >> choice;
+        cin.ignore(); // flush newline
+
+        if (choice == 'Q' || choice == 'q') break;
+
+        // =============================
+        //        USER TRANSACTIONS
+        // =============================
+        if (choice == 'T' || choice == 't') {
+            cout << "\nYour balance: " << userBTC << " BTC\n";
+            cout << "Send to one of the following addresses:\n\n";
+            for (auto &p : contacts)
+                cout << p.second << ": " << p.first << "\n";
+
+            cout << "\nEnter address: ";
+            string addr;
+            cin >> addr;
+            cin.ignore();
+
+            if (!contacts.count(addr)) {
+                cout << "❌ Unknown address!\n";
+                continue;
+            }
+
+            cout << "Enter amount: ";
+            double amt;
+            cin >> amt;
+            cin.ignore();
+
+            if (amt > userBTC) {
+                cout << "❌ Insufficient balance!\n";
+                continue;
+            }
+
+            cout << "\nSending " << amt << " BTC to " << contacts[addr] << "...\n";
+
+            for (int i = 1; i <= 3; i++) {
+                cout << "Confirmations: " << i << "/3\n";
+                this_thread::sleep_for(chrono::milliseconds(600));
+            }
+
+            userBTC -= amt;
+
+            cout << "\n✅ Transaction Successful!\n";
+            cout << "New Balance: " << userBTC << " BTC\n";
+            cout << "Tx Hash: 0x" << randomHex(64) << "\n";
+        }
+
+        // =============================
+        //          MARKET MODE
+        // =============================
+        else if (choice == 'M' || choice == 'm') {
+            cout << "\n=== MARKET LIVE MODE ===\n";
+            cout << "Press ENTER to stop the market...\n\n";
+
+            bool stopMarket = false;
+
+            thread marketThread([&]() {
+                while (!stopMarket) {
+                    int w = walletPick(gen);
+                    bool isBuy = buySell(gen);
+                    double amount = amountGen(gen);
+
+                    price += priceMove(gen);
+                    if (price < 1000) price = 1000;
+
+                    cout << "Price: $" << fixed << setprecision(2) << price << "  |  "
+                         << (isBuy ? "BUY  " : "SELL ") << amount
+                         << " BTC by wallet " << (w + 1) << "\n";
+
+                    this_thread::sleep_for(chrono::milliseconds(700));
+                }
+            });
+
+            // Wait for ENTER to stop
+            cin.get(); 
+            stopMarket = true;
+            marketThread.join();
+
+            cout << "\nExited market mode.\n";
+        }
+    }
+
+    cout << "Exiting simulator...\n";
+    return 0;
+}
